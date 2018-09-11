@@ -1,7 +1,7 @@
 import face_recognition
 import cv2
-from os import listdir
-from os.path import isdir, join, isfile, splitext, basename
+from os import listdir, mkdir
+from os.path import isdir, join, isfile, splitext, basename, exists
 import datetime
 
 
@@ -10,6 +10,11 @@ import datetime
 # PLEASE NOTE: This example requires OpenCV (the `cv2` library) to be installed only to read from your webcam.
 # OpenCV is *not* required to use the face_recognition library. It's only required if you want to run this
 # specific demo. If you have trouble installing it, try any of the other demos that don't require it instead.
+MAXSKIPCOUNT = 15
+MAXCHECKLIFE = 5
+
+targetfolder = "/home/deeplearning/nasshare/chitack.chang/face/ipdisk/target0904/"
+outputfolder = "/home/deeplearning/Desktop/face_recognition examples/output"
 
 def CheckVideo(videofile):
     print("check %s" % videofile)
@@ -23,7 +28,9 @@ def CheckVideo(videofile):
 
     # Initialize some variables
     frame_number = 0
-    unit_per_frame = length / 100
+    #unit_per_frame = 51
+    flag_count = 0
+    skip_count = 0
     while True:
         # Grab a single frame of video
         ret, frame = input_movie.read()
@@ -32,8 +39,14 @@ def CheckVideo(videofile):
         if not ret:
             break
         #if frame_number & 0x1f : continue
-        #if not frame_number % 15 == 0 : continue
-        if not frame_number % unit_per_frame == 0: continue
+        #if flag_found: flag_found = flag_found -1
+        #elif not frame_number % 15 == 0 : continue
+        #if not frame_number % unit_per_frame == 0: continue
+        if flag_count or skip_count >= MAXSKIPCOUNT:
+            skip_count = 0
+        elif skip_count < MAXSKIPCOUNT:
+            skip_count += 1
+            continue
         print("Checking frame {} / {}".format(frame_number, length))
 
         # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
@@ -45,20 +58,22 @@ def CheckVideo(videofile):
 
         if len(face_encodings):
             print("Found %d" % len(face_encodings))
-            cv2.imwrite("output/%s_frame%d_who.jpg" % (basename(videofile), frame_number), frame)
+            cv2.imwrite("%s/%s_frame%04d_who.jpg" % (outputfolder, basename(videofile).split(".")[0], frame_number), frame)
+            flag_count = MAXCHECKLIFE
+        elif flag_count > 0:
+            flag_count = flag_count - 1
 
     # All done!
     input_movie.release()
     cv2.destroyAllWindows()
-
-#targetfolder = "/mnt/hgfs/shareforvm/"
-targetfolder = "/home/deeplearning/nasshare/chitack.chang/face/ipdisk/target3/"
 
 for item in listdir(targetfolder):
     #print(join(targetfolder, item))
     if isdir(join(targetfolder, item)):
         continue
     if item.upper().find(".MOV") >= 0:
+        if not exists(outputfolder):
+            mkdir(outputfolder, 755)
         start = datetime.datetime.now()
         print(start)
         CheckVideo(join(targetfolder, item))
