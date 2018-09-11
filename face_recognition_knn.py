@@ -168,7 +168,8 @@ def draw_preds(img_path, preds, filesta):
             #mkdir(dirname(imname), 755)
             createdir( dirname(imname))
             print("Create folder %s"%(dirname(imname)))
-        cropimg.save(imname)
+        if not imname.upper().find("SEULKI") >= 0:
+            cropimg.save(imname)
         if not filesta[prefix].get(name):
             filesta[prefix][name] = 1
         else:
@@ -201,3 +202,8 @@ if __name__ == "__main__":
         #print("File : %s" % item, filesta[item])
         print(fn),
         print(sorted(filesta[fn].items(), key=lambda t: t[1], reverse = True))
+
+        if filesta[fn].get('seulki') : filesta[fn].pop('seulki')
+        for i in filesta[fn]:
+            print("%10s, %4d, %2.1f%%" % (i, filesta[fn][i], filesta[fn][i]*100/sum(filesta[fn].values())))
+
