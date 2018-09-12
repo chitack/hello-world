@@ -137,8 +137,9 @@ def predict(X_img_path, knn_clf = None, model_save_path ="", DIST_THRESH = .5):
 def createdir(path):
     if not exists( dirname(path) ) :
         createdir( dirname(path) )
-    print("Create Directory:%s" % (path))
-    mkdir(path, 755)
+    if not exists(path):
+        print("Create Directory:%s" % (path))
+        mkdir(path, 755)
 
 def draw_preds(img_path, preds, filesta, basedir):
     """
@@ -184,6 +185,23 @@ def draw_preds(img_path, preds, filesta, basedir):
     if False and len(imname) :
         source_img.save("%s" % (imname.replace("whois/", "whois/total_")))
 
+def processremainframe(frames, outputfolder, videofile):
+    count_found = 0
+    for frame in frames:
+        rgb_frame = frame[0][:, :, ::-1]
+
+        # Find all the faces and face encodings in the current frame of video
+        face_locations = face_recognition.face_locations(rgb_frame)
+        face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+
+        if len(face_encodings):
+            print("Found %d from Queue (No.%d)" % (len(face_encodings), frame[1]))
+            img_path = "%s/%s_frame%04d_who.jpg" % (outputfolder, basename(videofile).split(".")[0], frame[1])
+            cv2.imwrite(img_path, frame[0])
+            count_found += 1
+
+    return count_found
+
 def CheckVideo(videofile, outputfolder):
     print("check %s" % videofile)
     #return
@@ -200,6 +218,7 @@ def CheckVideo(videofile, outputfolder):
     flag_count = 0
     found_count = 0
     skip_count = 0
+    myq = []
     while True:
         # Grab a single frame of video
         ret, frame = input_movie.read()
@@ -207,6 +226,7 @@ def CheckVideo(videofile, outputfolder):
         # Quit when the input video file ends
         if not ret:
             break
+
         #if frame_number & 0x1f : continue
         #if flag_found: flag_found = flag_found -1
         #elif not frame_number % 15 == 0 : continue
@@ -215,6 +235,8 @@ def CheckVideo(videofile, outputfolder):
             skip_count = 0
         elif skip_count < MAXSKIPCOUNT:
             skip_count += 1
+            if len(myq)>5: myq.pop(0)
+            myq.append([frame, frame_number])
             continue
         print("Checking frame {} / {}".format(frame_number, length))
 
@@ -230,8 +252,11 @@ def CheckVideo(videofile, outputfolder):
             img_path = "%s/%s_frame%04d_who.jpg" % (outputfolder, basename(videofile).split(".")[0], frame_number)
             cv2.imwrite(img_path, frame)
             flag_count = MAXCHECKLIFE
-            found_count += 0
+            found_count += 1
             if found_count > 100: break
+            if len(myq):
+                found_count += processremainframe(myq, outputfolder, videofile)
+                myq = []
         elif flag_count > 0:
             flag_count = flag_count - 1
 
@@ -245,7 +270,9 @@ if __name__ == "__main__":
     parser.add_option("--train", dest="trainfolder",
                       help="specify folder to train for machine learning.",
                       type='string',
-                      default='/home/deeplearning/Desktop/face_recognition examples/knn_examples/train')
+                      default='/mnt/hgfs/shareforvm/face/train')
+    ## /mnt/hgfs/shareforvm/face/train
+    ## /home/deeplearning/Desktop/face_recognition examples/knn_examples/train
 
     parser.add_option("--tempout", dest="outputfolder",
                       help="specify folder to store teporary image file from video.",
@@ -255,7 +282,7 @@ if __name__ == "__main__":
     parser.add_option("--target", dest="targetfolder",
                       help="specify folder to read video files .",
                       type='string',
-                      default='/home/deeplearning/nasshare/chitack.chang/face/ipdisk/target0904')
+                      default='/home/deeplearning/nasshare/chitack.chang/face/ipdisk/target0912')
 
     parser.add_option("--recognition", dest="recognition",
                       help="specify folder to distribute each face",
@@ -302,8 +329,8 @@ if __name__ == "__main__":
         #print("File : %s" % item, filesta[item])
         print(fn)
         #print(sorted(allfilesta[fn].items(), key=lambda t: t[1], reverse = True))
-
         if allfilesta[fn].get('seulki') : allfilesta[fn].pop('seulki')
-        for i in allfilesta[fn]:
-            print("%10s, %4d, %2.1f%%" % (i, allfilesta[fn][i], allfilesta[fn][i]*100/sum(allfilesta[fn].values())))
+        newlist = sorted(allfilesta[fn].items(), key=lambda t: t[1], reverse=True)
+        for i in newlist:
+            print("%10s, %4d, %2.1f%%" % (i[0], allfilesta[fn][i[0]], allfilesta[fn][i[0]]*100/sum(allfilesta[fn].values())))
 
