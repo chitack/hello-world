@@ -37,7 +37,7 @@ def getCenterImage(face_location, frame):
     #print(ttop, tright, tbottom, tleft)
     return face_image
 
-def processremainframe(frames, outputfolder, videofile, found_count):
+def processremainframe(frames, outputfolder, videofile, found_count, force_flag):
     count_found = 0
     for frame in frames:
         rgb_frame = frame[0][:, :, ::-1]
@@ -46,8 +46,8 @@ def processremainframe(frames, outputfolder, videofile, found_count):
         face_locations = face_recognition.face_locations(rgb_frame)
         face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
-        if 0 and len(face_encodings):
-            print("Found %d from Queue (No.%d)" % (len(face_encodings), frame[1]))
+        if force_flag :
+            print("Force Found %d from Queue (No.%d)" % (len(face_encodings), frame[1]))
             img_path = "%s/%s_frame%04d_who.jpg" % (outputfolder, basename(videofile).split(".")[0], frame[1])
 
             #small_frame = cv2.resize(frame[0], (0, 0), fx=0.25, fy=0.25)
@@ -101,7 +101,7 @@ def CheckVideo(videofile, outputfolder):
             skip_count = 0
         elif skip_count < MAXSKIPCOUNT:
             skip_count += 1
-            if len(myq)>(COUNT_OF_LINE_IN_THUMB-1): myq.pop(0)
+            if len(myq)>(COUNT_OF_LINE_IN_THUMB): myq.pop(0)
             myq.append([frame, frame_number])
             continue
         print("Checking frame {} / {}".format(frame_number, length))
@@ -124,7 +124,7 @@ def CheckVideo(videofile, outputfolder):
             found_count += 1
             if found_count >= MAXCHECKLIFE: break
             if len(myq):
-                found_count += processremainframe(myq, outputfolder, videofile, found_count)
+                found_count += processremainframe(myq, outputfolder, videofile, found_count, False)
                 myq = []
             if found_count >= MAXCHECKLIFE: break
 
@@ -138,11 +138,13 @@ def CheckVideo(videofile, outputfolder):
             found_count += 1
             if found_count >= MAXCHECKLIFE: break
             if len(myq):
-                found_count += processremainframe(myq, outputfolder, videofile, found_count)
+                found_count += processremainframe(myq, outputfolder, videofile, found_count,False)
                 myq = []
             if found_count >= MAXCHECKLIFE: break
         if found_count >= MAXCHECKLIFE: break
 
+    if found_count < MAXCHECKLIFE:
+        processremainframe(myq, outputfolder, videofile, found_count,True)
     # All done!
     input_movie.release()
     cv2.destroyAllWindows()
@@ -213,15 +215,18 @@ if __name__ == "__main__":
 
     parser = OptionParser()
     parser.add_option("--source", dest="source",
-                      help="specify folder of MOV files hat you want to detect a face.",
+                      help="specify folder of MOV files hat you want to detect a face.\n[default:%default]",
                       type='string',
                       default='/home/deeplearning/nasshare/chitack.chang/face/ipdisk/target0912')
     parser.add_option("--temporaryoutput", dest="temporaryoutput",
-                      help="specify folder to make temporary image",
+                      help="specify folder to make temporary image\n[default:%default]",
                       type='string',
                       default='/home/deeplearning/Desktop/face_recognition examples/output')
 
     (options, args) = parser.parse_args()
 
-    #get_faces_from_video(options.source, options.temporaryoutput)
-    make_thumnail(options.temporaryoutput, options.source)
+    if not exists(join(options.source, 'final.png')):
+        get_faces_from_video(options.source, options.temporaryoutput)
+        make_thumnail(options.temporaryoutput, options.source)
+    else:
+        print("There is already final.png. It looks like it has been done (%s)" % options.source)
