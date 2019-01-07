@@ -46,8 +46,8 @@ def processremainframe(frames, outputfolder, videofile, found_count, force_flag)
         face_locations = face_recognition.face_locations(rgb_frame)
         face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
-        if force_flag :
-            print("Force Found %d from Queue (No.%d)" % (len(face_encodings), frame[1]))
+        if force_flag and len(face_locations) < 1:
+            print("@@Force Found %d from Queue (No.%d)" % (len(face_encodings), frame[1]))
             img_path = "%s/%s_frame%04d_who.jpg" % (outputfolder, basename(videofile).split(".")[0], frame[1])
 
             #small_frame = cv2.resize(frame[0], (0, 0), fx=0.25, fy=0.25)
@@ -61,7 +61,7 @@ def processremainframe(frames, outputfolder, videofile, found_count, force_flag)
             face_image = getCenterImage(face_location, frame[0])
             pil_image = Image.fromarray(face_image)
 
-            print("Found %d from Queue (No.%d)" % (len(face_encodings), frame[1]))
+            print("@@Found %d from Queue (No.%d)" % (len(face_encodings), frame[1]))
             img_path = "%s/%s_frame%04d_who.jpg" % (outputfolder, basename(videofile).split(".")[0], frame[1])
 
             pil_image.save(img_path)
@@ -90,6 +90,7 @@ def CheckVideo(videofile, outputfolder):
     found_count = 0
     skip_count = 0
     myq = []
+    t_start = datetime.datetime.now()
     while True:
         # Grab a single frame of video
         ret, frame = input_movie.read()
@@ -104,6 +105,11 @@ def CheckVideo(videofile, outputfolder):
             if len(myq)>(COUNT_OF_LINE_IN_THUMB): myq.pop(0)
             myq.append([frame, frame_number])
             continue
+        # break if it takes 10 seconds.
+        if ( datetime.timedelta(seconds=10) < (datetime.datetime.now() - t_start)):
+            print("Time out! (%d)" % (len(myq)))
+            break
+
         print("Checking frame {} / {}".format(frame_number, length))
 
         # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
@@ -125,7 +131,7 @@ def CheckVideo(videofile, outputfolder):
             if found_count >= MAXCHECKLIFE: break
             if len(myq):
                 found_count += processremainframe(myq, outputfolder, videofile, found_count, False)
-                myq = []
+                #myq = []
             if found_count >= MAXCHECKLIFE: break
 
         for face_location in face_locations:
