@@ -6,6 +6,8 @@ from os import listdir, mkdir, remove
 from os.path import isdir, join, isfile, splitext, basename, exists, dirname
 import datetime
 from optparse import OptionParser
+
+import sys
 import glob
 
 MAXSKIPCOUNT = 15
@@ -51,18 +53,33 @@ def processremainframe(frames, outputfolder, videofile, found_count, force_flag)
             img_path = "%s/%s_frame%04d_who.jpg" % (outputfolder, basename(videofile).split(".")[0], frame[1])
 
             #small_frame = cv2.resize(frame[0], (0, 0), fx=0.25, fy=0.25)
-            small_frame = cv2.resize(frame[0], (THUMB_WIDTH, THUMB_HEIGHT))
-            cv2.imwrite(img_path, small_frame)
+            #frame[0]((300,300,500,500))
+            try:
+                height, width, channels = frame[0].shape
+                iih = (int)(height/4)
+                iiw = (int)(width/4)
+                #cv2.imwrite(img_path, frame[0][iih:3*iih,iiw:iiw*3])
+                small_frame = cv2.resize(frame[0][iih:3*iih,iiw:iiw*3], (THUMB_WIDTH, THUMB_HEIGHT))
+                cv2.imwrite(img_path, small_frame)
+            except Exception as e:
+                print('Error on line{}'.format(sys.exe_info()[-1].tb_lineno), type(e).__name__, e)
+                small_frame = cv2.resize(frame[0], (THUMB_WIDTH, THUMB_HEIGHT))
+                cv2.imwrite(img_path, small_frame)
+
             count_found += 1
             found_count += 1
             if found_count >= MAXCHECKLIFE: break
 
+        if len(face_encodings):
+            print("Found %d" % len(face_encodings))
+            fidx = 1
         for face_location in face_locations:
             face_image = getCenterImage(face_location, frame[0])
             pil_image = Image.fromarray(face_image)
 
             print("@@Found %d from Queue (No.%d)" % (len(face_encodings), frame[1]))
-            img_path = "%s/%s_frame%04d_who.jpg" % (outputfolder, basename(videofile).split(".")[0], frame[1])
+            img_path = "%s/%s_frame%04d_%d_who.jpg" % (outputfolder, basename(videofile).split(".")[0], frame[1], fidx)
+            fidx += 1
 
             pil_image.save(img_path)
             count_found += 1
@@ -134,19 +151,22 @@ def CheckVideo(videofile, outputfolder):
                 #myq = []
             if found_count >= MAXCHECKLIFE: break
 
-        for face_location in face_locations:
+        if len(face_encodings):
             print("Found %d" % len(face_encodings))
-            img_path = "%s/%s_frame%04d_who.jpg" % (outputfolder, basename(videofile).split(".")[0], frame_number)
-
+        fidx = 1
+        for face_location in face_locations:
+            print("Face %d/%d" % (fidx,len(face_encodings)))
+            img_path = "%s/%s_frame%04d_%d_who.jpg" % (outputfolder, basename(videofile).split(".")[0], frame_number, fidx)
+            fidx += 1
             face_image = getCenterImage(face_location, frame)
             pil_image = Image.fromarray(face_image)
             pil_image.save(img_path)
             found_count += 1
             if found_count >= MAXCHECKLIFE: break
-            if len(myq):
-                found_count += processremainframe(myq, outputfolder, videofile, found_count,False)
-                myq = []
-            if found_count >= MAXCHECKLIFE: break
+        if len(face_encodings) and len(myq):
+            found_count += processremainframe(myq, outputfolder, videofile, found_count,False)
+            #myq = []
+
         if found_count >= MAXCHECKLIFE: break
 
     if found_count < MAXCHECKLIFE:
@@ -231,8 +251,10 @@ if __name__ == "__main__":
 
     (options, args) = parser.parse_args()
 
+    start = datetime.datetime.now()
     if not exists(join(options.source, 'final.png')):
         get_faces_from_video(options.source, options.temporaryoutput)
         make_thumnail(options.temporaryoutput, options.source)
     else:
         print("There is already final.png. It looks like it has been done (%s)" % options.source)
+    print("Total Elapsed:%s" %(datetime.datetime.now() - start))
