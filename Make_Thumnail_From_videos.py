@@ -11,7 +11,7 @@ import sys
 import glob
 
 MAXSKIPCOUNT = 15
-MAXCHECKLIFE = 4
+MAXCHECKLIFE = 2
 
 THUMB_WIDTH = 240
 THUMB_HEIGHT = 135
@@ -74,16 +74,18 @@ def CheckVideo(videofile, outputfolder):
     myq = []
 
     uu = int(length/(10*MAXCHECKLIFE))
-    mc = [1, uu*2, uu *3, uu]
+    mc = []
+    for i in range(0,MAXCHECKLIFE):
+        mc.append(uu*i)
     print(mc)
 
-    while frame_number <= (5*uu):
+    while frame_number <= (MAXCHECKLIFE*uu+1):
         ret, frame = input_movie.read()
         if not ret:
             break
-        frame_number += 1
         if frame_number in mc:
             myq.append([frame,frame_number])
+        frame_number += 1
         if len(myq) >= MAXCHECKLIFE:
             break
 
