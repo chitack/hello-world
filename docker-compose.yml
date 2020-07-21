@@ -1,0 +1,32 @@
+version: '3'
+
+services:
+   db:
+     image: mysql:latest
+     container_name: mymysql
+     ports:
+       - "3306:3306"
+     volumes:
+       - ./gnuboard_db:/var/lib/mysql
+     restart: always
+     environment:
+       MYSQL_ROOT_PASSWORD: admin@12
+       MYSQL_USER: abat
+       MYSQL_DATABASE: abat_db
+       MYSQL_PASSWORD: admin@12
+     command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+   gnuboard:
+     depends_on:
+       - db
+     build: .
+     ports:
+       - "80:80"
+     restart: always
+     #command: - git clone https://github.com/gnuboard/gnuboard5.git /var/www/html/
+     volumes:
+       - ./board_data:/var/www/html/data
+     links:
+       - db:db
